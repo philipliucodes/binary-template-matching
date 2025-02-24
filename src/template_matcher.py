@@ -15,9 +15,8 @@ def load_images(path, grayscale=True):
     images = []
     flag = cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR
 
-    # If a directory is given, load all images inside
     if os.path.isdir(path):
-        image_paths = glob(os.path.join(path, "*.[pjP][npP][gG]"))  # Match .jpg, .png, .JPG, .PNG
+        image_paths = glob(os.path.join(path, "*.[pjP][npP][gG]"))
     elif os.path.isfile(path):
         image_paths = [path]
     else:
@@ -33,9 +32,9 @@ def load_images(path, grayscale=True):
 
     return images
 
-def binarize_image(image, threshold=128):
+def binarize_image(image, threshold=200):
     """
-    Converts an image to a binary format using a threshold.
+    Converts an image to a binary format using a specified threshold.
 
     :param image: Input grayscale image.
     :param threshold: Threshold value for binarization.
@@ -44,7 +43,7 @@ def binarize_image(image, threshold=128):
     _, binary_image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY)
     return binary_image
 
-def match_templates(input_images, template_images, threshold=0.8):
+def match_templates(input_images, template_images, threshold=0.9):
     """
     Matches templates within input images using template matching.
 
@@ -100,6 +99,7 @@ def main():
     parser.add_argument("input", type=str, help="Path to the input image or directory.")
     parser.add_argument("template", type=str, help="Path to the template image or directory.")
     parser.add_argument("--threshold", type=float, default=0.8, help="Matching threshold (default: 0.8).")
+    parser.add_argument("--white_threshold", type=int, default=200, help="White threshold for binarization (default: 200).")
     parser.add_argument("--output", type=str, default="output/matched_results/", help="Directory to save output images.")
 
     args = parser.parse_args()
@@ -115,9 +115,9 @@ def main():
         print("Error: No valid template images loaded.")
         return
 
-    # Binarize images
-    input_images = [(path, binarize_image(img)) for path, img in input_images]
-    template_images = [(path, binarize_image(img)) for path, img in template_images]
+    # Binarize images with specified white threshold
+    input_images = [(path, binarize_image(img, args.white_threshold)) for path, img in input_images]
+    template_images = [(path, binarize_image(img, args.white_threshold)) for path, img in template_images]
 
     # Perform template matching
     matches = match_templates(input_images, template_images, args.threshold)
