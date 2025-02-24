@@ -43,7 +43,7 @@ The `template_matcher.py` script allows template matching using binarized images
 #### Command-line Usage
 
 ```bash
-python src/template_matcher.py input_image_or_directory template_image_or_directory --threshold 0.90 --white_threshold 200 --output results/
+python src/template_matcher.py input_image_or_directory template_image_or_directory --confidence_threshold 0.90 --white_threshold 200 --output results/
 ```
 
 #### Examples
@@ -51,25 +51,25 @@ python src/template_matcher.py input_image_or_directory template_image_or_direct
 1. **Match a single image against a single template:**
 
    ```bash
-   python src/template_matcher.py input.jpg template.jpg --threshold 0.90 --white_threshold 200 --output results/
+   python src/template_matcher.py input.jpg template.jpg --confidence_threshold 0.90 --white_threshold 200 --output results/
    ```
 
 2. **Match a single image against multiple templates (inside a directory):**
 
    ```bash
-   python src/template_matcher.py input.jpg templates/ --threshold 0.90 --white_threshold 200 --output results/
+   python src/template_matcher.py input.jpg templates/ --confidence_threshold 0.90 --white_threshold 200 --output results/
    ```
 
 3. **Match multiple input images against a single template:**
 
    ```bash
-   python src/template_matcher.py images/ template.jpg --threshold 0.90 --white_threshold 200 --output results/
+   python src/template_matcher.py images/ template.jpg --confidence_threshold 0.90 --white_threshold 200 --output results/
    ```
 
 4. **Match multiple input images against multiple templates:**
 
    ```bash
-   python src/template_matcher.py images/ templates/ --threshold 0.90 --white_threshold 200 --output results/
+   python src/template_matcher.py images/ templates/ --confidence_threshold 0.90 --white_threshold 200 --output results/
    ```
 
 ---

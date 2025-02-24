@@ -1,138 +1,113 @@
-import cv2
-import numpy as np
-import argparse
 import os
-from glob import glob
+import argparse
+import numpy as np
+from PIL import Image
+import cv2
 
-def load_images(path, grayscale=True):
-    """
-    Loads an image or all images from a directory.
+def is_image(file_path):
+    """Checks if the file is an image based on its extension."""
+    return file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))
 
-    :param path: Path to an image file or directory.
-    :param grayscale: Whether to load images in grayscale.
-    :return: List of loaded images.
-    """
-    images = []
-    flag = cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR
-
+def get_images(path):
+    """Returns a list of image paths from a given file or directory."""
     if os.path.isdir(path):
-        image_paths = glob(os.path.join(path, "*.[pjP][npP][gG]"))
-    elif os.path.isfile(path):
-        image_paths = [path]
+        return [os.path.join(path, f) for f in os.listdir(path) if is_image(f)]
+    elif os.path.isfile(path) and is_image(path):
+        return [path]
     else:
-        print(f"Error: Invalid path '{path}'. Ensure it exists.")
         return []
 
-    for img_path in image_paths:
-        image = cv2.imread(img_path, flag)
-        if image is not None:
-            images.append((img_path, image))
-        else:
-            print(f"Warning: Failed to load image '{img_path}'.")
+def transform_pixels(image_array, alpha_channel, white_threshold):
+    """Transforms an image to a binary mask based on transparency and whiteness."""
+    transformed = np.zeros(image_array.shape[:2], dtype=np.uint8)
+    non_transparent = alpha_channel > 0
+    almost_white = (
+        (image_array[:, :, 0] > white_threshold) &
+        (image_array[:, :, 1] > white_threshold) &
+        (image_array[:, :, 2] > white_threshold)
+    )
+    transformed[almost_white & non_transparent] = 255
+    transformed[~almost_white & non_transparent] = 0
+    return transformed
 
-    return images
-
-def binarize_image(image, threshold=200):
-    """
-    Converts an image to a binary format using a specified threshold.
-
-    :param image: Input grayscale image.
-    :param threshold: Threshold value for binarization.
-    :return: Binarized image.
-    """
-    _, binary_image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY)
-    return binary_image
-
-def match_templates(input_images, template_images, threshold=0.9):
-    """
-    Matches templates within input images using template matching.
-
-    :param input_images: List of (path, image) tuples for input images.
-    :param template_images: List of (path, image) tuples for template images.
-    :param threshold: Matching threshold.
-    :return: Dictionary of matches per input image.
-    """
-    match_results = {}
-
-    for input_path, input_img in input_images:
-        detected_regions = []
-        for template_path, template in template_images:
-            result = cv2.matchTemplate(input_img, template, cv2.TM_CCOEFF_NORMED)
-            locations = np.where(result >= threshold)
-
-            for pt in zip(*locations[::-1]):
-                w, h = template.shape[::-1]
-                detected_regions.append((pt[0], pt[1], w, h, template_path))
-
-        match_results[input_path] = detected_regions
-
-    return match_results
-
-def draw_matches(image, matches):
-    """
-    Draws rectangles around detected template matches.
-
-    :param image: Input image.
-    :param matches: List of detected match coordinates [(x, y, w, h, template_path), ...].
-    :return: Image with matches drawn.
-    """
-    output_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+def template_matcher(input_path, template_path, confidence_threshold, white_threshold, output_dir):
+    """Performs template matching on input images using the provided template(s)."""
+    os.makedirs(output_dir, exist_ok=True)
     
-    for (x, y, w, h, _) in matches:
-        cv2.rectangle(output_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    input_images = get_images(input_path)
+    template_images = get_images(template_path)
     
-    return output_image
-
-def save_output(image, output_path):
-    """
-    Saves the processed image with detected template matches.
-
-    :param image: Image with drawn matches.
-    :param output_path: Path to save the output image.
-    """
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    cv2.imwrite(output_path, image)
-    print(f"Output saved to '{output_path}'.")
-
-def main():
-    parser = argparse.ArgumentParser(description="Template matching using binarization and direct pixel matching.")
-    parser.add_argument("input", type=str, help="Path to the input image or directory.")
-    parser.add_argument("template", type=str, help="Path to the template image or directory.")
-    parser.add_argument("--threshold", type=float, default=0.9, help="Matching threshold (default: 0.9).")
-    parser.add_argument("--white_threshold", type=int, default=200, help="White threshold for binarization (default: 200).")
-    parser.add_argument("--output", type=str, default="output/matched_results/", help="Directory to save output images.")
-
-    args = parser.parse_args()
-
-    # Load and process images
-    input_images = load_images(args.input)
-    template_images = load_images(args.template)
-
     if not input_images:
-        print("Error: No valid input images loaded.")
+        print(f"Error: No valid input images found in '{input_path}'")
         return
     if not template_images:
-        print("Error: No valid template images loaded.")
+        print(f"Error: No valid template images found in '{template_path}'")
         return
+    
+    for input_filename in input_images:
+        input_image = Image.open(input_filename).convert("RGBA")
+        input_array = np.array(input_image)
+        input_alpha = input_array[:, :, 3]
+        input_transformed = transform_pixels(input_array, input_alpha, white_threshold)
+        
+        best_template = None
+        max_matches = 0
+        best_match_positions = []
+        best_template_size = (0, 0)
+        
+        for template_filename in template_images:
+            template_image = Image.open(template_filename).convert("RGBA")
+            template_array = np.array(template_image)
+            template_alpha = template_array[:, :, 3]
+            template_transformed = transform_pixels(template_array, template_alpha, white_threshold)
+            
+            ih, iw = input_transformed.shape
+            th, tw = template_transformed.shape
+            
+            matches = []
+            for y in range(ih - th + 1):
+                for x in range(iw - tw + 1):
+                    roi = input_transformed[y:y+th, x:x+tw]
+                    mask = template_alpha > 0
+                    total_pixels = np.count_nonzero(mask)
+                    
+                    if total_pixels > 0:
+                        matching_pixels = np.sum(roi[mask] == template_transformed[mask])
+                        match_score = matching_pixels / total_pixels
+                        
+                        if match_score >= confidence_threshold:
+                            matches.append((x, y))
+            
+            if len(matches) > max_matches:
+                max_matches = len(matches)
+                best_template = os.path.basename(template_filename)
+                best_match_positions = matches
+                best_template_size = (tw, th)
+        
+        if best_template and max_matches > 0:
+            result_array = np.array(input_image)
+            for (x, y) in best_match_positions:
+                cv2.rectangle(result_array, (x, y), (x + best_template_size[0], y + best_template_size[1]), (255, 0, 0, 255), 2)
+            
+            output_image = Image.fromarray(result_array)
+            output_name = os.path.splitext(os.path.basename(input_filename))[0] + "_matched.png"
+            output_path = os.path.join(output_dir, output_name)
+            output_image.save(output_path)
+            
+            print(f"Input '{os.path.basename(input_filename)}': Best template '{best_template}' with {max_matches} matches.")
 
-    # Binarize images with specified white threshold
-    input_images = [(path, binarize_image(img, args.white_threshold)) for path, img in input_images]
-    template_images = [(path, binarize_image(img, args.white_threshold)) for path, img in template_images]
-
-    # Perform template matching
-    matches = match_templates(input_images, template_images, args.threshold)
-
-    # Draw and save results
-    for input_path, detected_regions in matches.items():
-        image = cv2.imread(input_path, cv2.IMREAD_GRAYSCALE)
-        output_img = draw_matches(image, detected_regions)
-
-        # Generate output path
-        input_name = os.path.splitext(os.path.basename(input_path))[0]
-        output_filename = f"{input_name}_matched.png"
-        output_path = os.path.join(args.output, output_filename)
-
-        save_output(output_img, output_path)
+def main():
+    """Parses command-line arguments and runs the template matcher."""
+    parser = argparse.ArgumentParser(description="Template matching using image masks.")
+    parser.add_argument("input_path", type=str, help="Path to input image or directory.")
+    parser.add_argument("template_path", type=str, help="Path to template image or directory.")
+    parser.add_argument("--confidence_threshold", type=float, default=0.90, help="Threshold for matching confidence (default: 0.90)")
+    parser.add_argument("--white_threshold", type=int, default=200, help="Threshold for defining near-white pixels (default: 200)")
+    parser.add_argument("--output", type=str, default="output", help="Directory to save matched images (default: output/)")
+    
+    args = parser.parse_args()
+    
+    template_matcher(args.input_path, args.template_path, args.confidence_threshold, args.white_threshold, args.output)
 
 if __name__ == "__main__":
     main()
