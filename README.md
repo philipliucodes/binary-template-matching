@@ -23,7 +23,7 @@ The `frame_extractor.py` script extracts a specific frame from a video at a give
 #### Command-line Usage
 
 ```bash
-python src/frame_extractor.py path/to/video.mp4 00:44.250 --output extracted_frames
+python src/frame_extractor.py path/to/video.mp4 MM:SS.MS --output frames/
 ```
 
 #### Example
@@ -31,7 +31,7 @@ python src/frame_extractor.py path/to/video.mp4 00:44.250 --output extracted_fra
 Extract a frame at **00:44.250** from `video.mp4` and save it to the `extracted_frames/` directory:
 
 ```bash
-python src/frame_extractor.py sample_video.mp4 00:44.250 --output frames/
+python src/frame_extractor.py sample_video.mp4 00:44.250 --output extracted_frames
 ```
 
 ---
