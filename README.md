@@ -74,4 +74,4 @@ python src/template_matcher.py input_image_or_directory template_image_or_direct
 ## Testing Data
 
 A sample dataset from **Lee Memory and Cognition Lab at Purdue University**, containing cursor-tracking data from screen recordings, is available for testing.  
-[Download Dataset Here](#) _(https://drive.google.com/drive/folders/1z6H-jSOXbFHEh0YNDAoG9efRs2j1vyI7?usp=drive_link)_
+[Download Dataset Here](https://drive.google.com/drive/folders/1z6H-jSOXbFHEh0YNDAoG9efRs2j1vyI7?usp=drive_link)
