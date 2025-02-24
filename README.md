@@ -2,6 +2,8 @@
 
 Binary Template Matching is a Python-based approach that utilizes **binarization** to transform input and template images, followed by direct pixel matching for efficient and accurate template detection.
 
+Binarization enhances template matching by simplifying images to their fundamental shapes, making it especially useful when the template's shading, contrast, or color may vary. This technique is effective for locating objects with distinct contours, such as identifying a cursor in a screen recording, detecting symbols in documents, or recognizing objects under varying lighting conditions. By reducing the complexity of image data, binarization improves robustness in situations where traditional grayscale or color-based matching might fail.
+
 ## Installation
 
 Clone the repository and install the required dependencies using `pip`:
