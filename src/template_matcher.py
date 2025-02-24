@@ -51,9 +51,11 @@ def template_matcher(input_path, template_path, confidence_threshold, white_thre
         input_transformed = transform_pixels(input_array, input_alpha, white_threshold)
         
         best_template = None
-        max_matches = 0
+        max_match_score = 0
         best_match_positions = []
         best_template_size = (0, 0)
+        best_match_count = 0
+        best_match_percentage = 0.0
         
         for template_filename in template_images:
             template_image = Image.open(template_filename).convert("RGBA")
@@ -65,6 +67,8 @@ def template_matcher(input_path, template_path, confidence_threshold, white_thre
             th, tw = template_transformed.shape
             
             matches = []
+            match_score_total = 0
+            total_comparisons = 0
             for y in range(ih - th + 1):
                 for x in range(iw - tw + 1):
                     roi = input_transformed[y:y+th, x:x+tw]
@@ -77,14 +81,23 @@ def template_matcher(input_path, template_path, confidence_threshold, white_thre
                         
                         if match_score >= confidence_threshold:
                             matches.append((x, y))
+                            match_score_total += match_score
+                            total_comparisons += 1
             
-            if len(matches) > max_matches:
-                max_matches = len(matches)
+            if total_comparisons > 0:
+                average_match_score = (match_score_total / total_comparisons) * 100
+            else:
+                average_match_score = 0.0
+            
+            if match_score_total > max_match_score:
+                max_match_score = match_score_total
                 best_template = os.path.basename(template_filename)
                 best_match_positions = matches
                 best_template_size = (tw, th)
+                best_match_count = len(matches)
+                best_match_percentage = average_match_score
         
-        if best_template and max_matches > 0:
+        if best_template and best_match_count > 0:
             result_array = np.array(input_image)
             for (x, y) in best_match_positions:
                 cv2.rectangle(result_array, (x, y), (x + best_template_size[0], y + best_template_size[1]), (255, 0, 0, 255), 2)
@@ -94,7 +107,9 @@ def template_matcher(input_path, template_path, confidence_threshold, white_thre
             output_path = os.path.join(output_dir, output_name)
             output_image.save(output_path)
             
-            print(f"Input '{os.path.basename(input_filename)}': Best template '{best_template}' with {max_matches} matches.")
+            print(f"Input '{os.path.basename(input_filename)}': Best template '{best_template}' with {best_match_count} matches (Average Match: {best_match_percentage:.2f}%).")
+        else:
+            print(f"Input '{os.path.basename(input_filename)}': No template matches found.")
 
 def main():
     """Parses command-line arguments and runs the template matcher."""
