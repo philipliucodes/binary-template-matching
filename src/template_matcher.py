@@ -98,7 +98,7 @@ def main():
     parser = argparse.ArgumentParser(description="Template matching using binarization and direct pixel matching.")
     parser.add_argument("input", type=str, help="Path to the input image or directory.")
     parser.add_argument("template", type=str, help="Path to the template image or directory.")
-    parser.add_argument("--threshold", type=float, default=0.8, help="Matching threshold (default: 0.8).")
+    parser.add_argument("--threshold", type=float, default=0.9, help="Matching threshold (default: 0.9).")
     parser.add_argument("--white_threshold", type=int, default=200, help="White threshold for binarization (default: 200).")
     parser.add_argument("--output", type=str, default="output/matched_results/", help="Directory to save output images.")
 
