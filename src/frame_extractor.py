@@ -4,18 +4,26 @@ import argparse
 
 def extract_frame(video_path, time_str, output_dir):
     """
-    Extracts a frame from the video at the specified time (MM:SS) and saves it to the specified output directory.
+    Extracts a frame from the video at the specified time (MM:SS:MS or MM:SS.MS) 
+    and saves it to the specified output directory.
 
     :param video_path: Path to the input video file.
-    :param time_str: Time in "MM:SS" format.
+    :param time_str: Time in "MM:SS:MS" or "MM:SS.MS" format.
     :param output_dir: Directory where the extracted frame will be saved.
     """
-    # Convert MM:SS to total seconds
+    # Convert MM:SS:MS or MM:SS.MS to total milliseconds
     try:
-        minutes, seconds = map(int, time_str.split(":"))
-        time_seconds = minutes * 60 + seconds
+        if ":" in time_str and "." in time_str:
+            minutes, seconds, milliseconds = map(int, time_str.replace(":", ".").split("."))
+        elif ":" in time_str:
+            minutes, seconds = map(int, time_str.split(":"))
+            milliseconds = 0
+        else:
+            raise ValueError
+
+        time_milliseconds = (minutes * 60 + seconds) * 1000 + milliseconds
     except ValueError:
-        print("Error: Time format must be MM:SS (e.g., '00:44').")
+        print("Error: Time format must be MM:SS:MS or MM:SS.MS (e.g., '00:44:500' or '00:44.500').")
         return
 
     # Open video
@@ -25,7 +33,7 @@ def extract_frame(video_path, time_str, output_dir):
         return
 
     # Set position in milliseconds
-    cap.set(cv2.CAP_PROP_POS_MSEC, time_seconds * 1000)
+    cap.set(cv2.CAP_PROP_POS_MSEC, time_milliseconds)
 
     # Read the frame
     success, frame = cap.read()
@@ -38,7 +46,7 @@ def extract_frame(video_path, time_str, output_dir):
     video_name = os.path.splitext(os.path.basename(video_path))[0]
 
     # Format timestamp for filename (avoid special characters)
-    formatted_time = time_str.replace(":", "_")
+    formatted_time = time_str.replace(":", "_").replace(".", "_")
 
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -54,9 +62,9 @@ def extract_frame(video_path, time_str, output_dir):
     cap.release()
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract a frame from a video at a specific timestamp.")
+    parser = argparse.ArgumentParser(description="Extract a frame from a video at a specific timestamp (MM:SS:MS or MM:SS.MS).")
     parser.add_argument("video_path", type=str, help="Path to the input video file.")
-    parser.add_argument("time", type=str, help="Timestamp in 'MM:SS' format (e.g., '00:44').")
+    parser.add_argument("time", type=str, help="Timestamp in 'MM:SS:MS' or 'MM:SS.MS' format (e.g., '00:44:500' or '00:44.500').")
     parser.add_argument("--output", type=str, default="extracted_frames", help="Output directory (default: 'extracted_frames').")
 
     args = parser.parse_args()
