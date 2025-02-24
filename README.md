@@ -1,0 +1,77 @@
+# Binary Template Matching
+
+Binary Template Matching is a Python-based approach that utilizes **binarization** to transform input and template images, followed by direct pixel matching for efficient and accurate template detection.
+
+## Installation
+
+Clone the repository and install the required dependencies using `pip`:
+
+```bash
+git clone https://github.com/yourusername/binary-template-matching.git
+cd binary-template-matching
+pip install -r requirements.txt
+```
+
+## Usage
+
+### Extracting Frames from a Video
+
+The `frame_extractor.py` script extracts a specific frame from a video at a given timestamp.
+
+#### Command-line Usage
+
+```bash
+python src/frame_extractor.py path/to/video.mp4 00:44 --output extracted_frames
+```
+
+#### Example
+
+Extract a frame at **00:44** from `video.mp4` and save it to the `extracted_frames/` directory:
+
+```bash
+python src/frame_extractor.py sample_video.mp4 00:44 --output frames/
+```
+
+---
+
+### Template Matching with Binarization
+
+The `template_matcher.py` script allows template matching using binarized images. It supports both **single image** and **directory-based** matching.
+
+#### Command-line Usage
+
+```bash
+python src/template_matcher.py input_image_or_directory template_image_or_directory --threshold 0.85 --output results/
+```
+
+#### Examples
+
+1. **Match a single image against a single template:**
+
+   ```bash
+   python src/template_matcher.py input.jpg template.jpg --threshold 0.85 --output results/
+   ```
+
+2. **Match a single image against multiple templates (inside a directory):**
+
+   ```bash
+   python src/template_matcher.py input.jpg templates/ --threshold 0.85 --output results/
+   ```
+
+3. **Match multiple input images against a single template:**
+
+   ```bash
+   python src/template_matcher.py images/ template.jpg --threshold 0.85 --output results/
+   ```
+
+4. **Match multiple input images against multiple templates:**
+   ```bash
+   python src/template_matcher.py images/ templates/ --threshold 0.85 --output results/
+   ```
+
+---
+
+## Testing Data
+
+A sample dataset from **Lee Memory and Cognition Lab at Purdue University**, containing cursor-tracking data from screen recordings, is available for testing.  
+[Download Dataset Here](#) _(https://drive.google.com/drive/folders/1z6H-jSOXbFHEh0YNDAoG9efRs2j1vyI7?usp=drive_link)_
