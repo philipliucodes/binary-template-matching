@@ -1,0 +1,51 @@
+# Byte-compiled and cached Python files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+*.venv
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs and debug files
+*.log
+*.out
+*.err
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependency and build artifacts
+*.egg-info/
+dist/
+build/
+*.spec
+
+# Generated output images or result files
+output/
+results/
+*.bmp
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.tiff
+
+# Ignore downloaded datasets (if applicable)
+data/
+datasets/
