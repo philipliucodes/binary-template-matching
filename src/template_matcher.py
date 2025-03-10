@@ -32,7 +32,7 @@ def load_images(path, grayscale=True):
 
     return images
 
-def binarize_image(image, threshold=200):
+def binarize_image(image, threshold):
     """
     Converts an image to a binary format using a specified threshold.
 
