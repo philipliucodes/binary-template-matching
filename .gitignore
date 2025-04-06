@@ -49,3 +49,4 @@ results/
 # Ignore downloaded datasets (if applicable)
 data/
 datasets/
+results/
