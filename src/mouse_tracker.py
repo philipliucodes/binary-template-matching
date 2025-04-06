@@ -15,14 +15,14 @@ def extract_frames(video_path, white_threshold, start_time, end_time):
     interval = int(0.1 * fps)  # 100ms interval
     
     rgb_frames = [] # List to store rgb frames
-    binary_frames = []  # List to store grayscale frames
+    binary_frames = []  # List to store binary frames
     current_frame = start_frame
     video_capture.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
     while current_frame <= end_frame:
         ret, frame = video_capture.read()
         if not ret:
             break
-        rgb_frames.append(frame)
+        rgb_frames.append(frame) # bgr
         # Convert frame to grayscale
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         binary_frame = template_matcher.binarize_image(gray_frame, white_threshold)
@@ -68,42 +68,70 @@ def pick_pixel(frame):
                 selected_pixel = (row, col)
             plt.close()
     fig, ax = plt.subplots()
-    ax.imshow(frame)
+    ax.imshow(frame, cmap='gray')
     fig.canvas.mpl_connect('button_press_event', on_click)
+    manager = plt.get_current_fig_manager()
+    manager.window.state('zoomed')
     plt.show()
     return selected_pixel
 
 def get_cursor_loc(binary_frames, rgb_frames, idx, templates, prev_x, prev_y, detection_threshold):
     frame = binary_frames[idx]
     detected_regions = []
-    for template_path, template in templates:
-        result = cv2.matchTemplate(frame, template, cv2.TM_CCOEFF_NORMED)
-        locations = np.where(result >= detection_threshold)
+    while detection_threshold >= 0.7:
+        for template_path, template in templates:
+            w, h = template.shape[::-1]
+            result = cv2.matchTemplate(frame, template, cv2.TM_CCOEFF_NORMED)
+            locations = np.where(result >= detection_threshold)
 
-        for pt in zip(*locations[::-1]):
-            detected_regions.append((int(pt[0]), int(pt[1])))
+            for pt in zip(*locations[::-1]):
+                detected_regions.append((int(pt[0]), int(pt[1])))
+                cv2.rectangle(rgb_frames[idx], pt, (pt[0] + w, pt[1] + h), (0,0,255), 1)
+        if(len(detected_regions) != 0):
+            break
+        detection_threshold -= 0.05
     if len(detected_regions) == 1: # one
         return detected_regions[0][0], detected_regions[0][1]
-    else: # none or multiple
-        # display frame
-        # option to pick no visible cursor
-        # return cursor location or previous cursor location
+    elif len(detected_regions) > 10 or len(detected_regions) == 0: # large multiple
+        print(len(detected_regions))
+        curr_x, curr_y = pick_pixel(binary_frames[idx])
         curr_x, curr_y = pick_pixel(rgb_frames[idx])
         if curr_x != -1 and curr_y != -1:
             return curr_x, curr_y
         else:
             return prev_x, prev_y
-    # else: # more than one -> pick the closest
-    #     return closest_point((prev_x, prev_y), detected_regions)
+    else: # if multiple, check if regions are close together (within 3 pixels)
+        # if close, return average
+        close = True
+        for idx1 in range(len(detected_regions)):
+            region = detected_regions[idx1]
+            for idx2 in range(idx1, len(detected_regions)):
+                if int(round(math.sqrt((region[idx1] - region[idx2])**2 + (region[idx1] - region[idx2])**2))) > 10:
+                    close = False
+                    break
+            if close == False:
+                break
+        if close:
+            x_list = [region[0] for region in detected_regions]
+            y_list = [region[1] for region in detected_regions]
+            return (int(round(np.mean(x_list))), int(round(np.mean(y_list))))
+        else:
+            print(len(detected_regions))
+            curr_x, curr_y = pick_pixel(binary_frames[idx])
+            curr_x, curr_y = pick_pixel(rgb_frames[idx])
+            if curr_x != -1 and curr_y != -1:
+                return curr_x, curr_y
+            else:
+                return prev_x, prev_y
 
 def make_tr_dict(binary_frames, rgb_frames, templates, prev_x, prev_y, detection_threshold):
     tr_dist_dict = {}
     # if only 1 match, then get x and y, if none, decrease threshold until 1 match, if multiple matches then discard/infer from previous
     frame_counter = 1
     #for tr in range(600): # 15*60/1.5 = 600 TR
-    for tr in range(10): # 15*60/1.5 = 600 TR
+    for tr in range(20): # TESTING
         dists = []
-        for ms in range(15): # 15 units of 100ms in each TR
+        for ms in range(15): # 15 units of 100ms in each TR (NEED TO CHANGE IF DECREASE INTERVAL)
             curr_x, curr_y = get_cursor_loc(binary_frames, rgb_frames, frame_counter, templates, prev_x, prev_y, detection_threshold)
             dists.append(int(round(math.sqrt((curr_x - prev_x)**2 + (curr_y - prev_y)**2))))
             prev_x, prev_y = curr_x, curr_y
@@ -131,8 +159,8 @@ def main(input_filepath, output_filepath, templates_folderpath, start_time, end_
         exit()
     
     # thresholds
-    detection_threshold = 0.85
-    white_threshold = 127
+    detection_threshold = 0.90
+    white_threshold = 207
 
     # extract frames
     binary_frames, rgb_frames = extract_frames(input_filepath, white_threshold, start_time, end_time)
@@ -165,4 +193,4 @@ if __name__ == "__main__":
     templates_folderpath = 'binary-image-matching/src/templates'
     start_time = 185
     end_time = 1085
-    main(input_filepath, output_filepath, templates_folderpath, start_time, 200)
+    main(input_filepath, output_filepath, templates_folderpath, start_time, 215)
