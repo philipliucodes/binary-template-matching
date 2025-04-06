@@ -9,6 +9,7 @@ import queue
 import threading
 
 frame_review_queue = queue.Queue()
+processing_done = threading.Event()
 
 def is_image(file_path):
     return file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))
@@ -150,9 +151,9 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
 
 def manual_review_loop(csv_output):
     screen_res = 1920, 1080
-    scale_percent = 200  # increase window size by 2x
+    scale_percent = 200
 
-    while True:
+    while not (processing_done.is_set() and frame_review_queue.empty()):
         if not frame_review_queue.empty():
             frame, timestamp = frame_review_queue.get()
             window_name = f"Manual Review - {timestamp}"
@@ -171,7 +172,7 @@ def manual_review_loop(csv_output):
                     orig_y = int(y * height / new_height)
                     clicked_coords.append((orig_x, orig_y))
                     clicked[0] = True
-                    print(f"[Manual Input] User clicked at ({orig_x}, {orig_y}) on frame {timestamp}")
+                    print(f"[MANUAL INPUT] User clicked at ({orig_x}, {orig_y}) on frame {timestamp}")
                     cv2.setMouseCallback(window_name, lambda *args: None)
                     cv2.destroyWindow(window_name)
 
@@ -184,7 +185,7 @@ def manual_review_loop(csv_output):
             while True:
                 key = cv2.waitKey(10)
                 if key == 23:  # Ctrl + W
-                    print(f"[Manual Input] Ctrl+W pressed on frame {timestamp}. Object not present.")
+                    print(f"[MANUAL INPUT] Ctrl+W pressed on frame {timestamp}. Object not present.")
                     object_not_present[0] = True
                     cv2.destroyWindow(window_name)
                     break
@@ -201,9 +202,8 @@ def manual_review_loop(csv_output):
                 x, y = clicked_coords[0]
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Manual selection", x, y, "N/A"])
         else:
-            key = cv2.waitKey(10)
-            if key == 27:
-                break
+            cv2.waitKey(50)
+    print("[INFO] All frames processed and manual review complete. Exiting...")
 
 def template_matcher(video_path, template_path, interval_sec, confidence_threshold, white_threshold, output_dir, save_bboxes, search_width, search_height, batch_size):
     video_name = os.path.splitext(os.path.basename(video_path))[0]
@@ -215,6 +215,7 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
 
     if interval_sec * fps < 1:
         print(f"[ERROR] The interval ({interval_sec}s) is too small for the video's FPS ({fps}). Please use a larger interval.")
+        processing_done.set()
         return
 
     interval = max(1, int(interval_sec * fps))
@@ -224,6 +225,7 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
 
     if not template_images:
         print(f"[ERROR] No valid template images found in '{template_path}'")
+        processing_done.set()
         return
 
     with open(csv_output, mode='w', newline='') as file:
@@ -245,6 +247,8 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
             )
             frame_counter += 1
 
+    processing_done.set()
+
 def main():
     parser = argparse.ArgumentParser(description="Template matching on extracted video frames.")
     parser.add_argument("video_path", type=str, help="Path to input video file.")
@@ -252,9 +256,9 @@ def main():
     parser.add_argument("--interval", type=float, default=5, help="Interval in seconds between extracted frames.")
     parser.add_argument("--output", type=str, default="output", help="Directory to store output CSV (default: output)")
     parser.add_argument("--save_bboxes", action='store_true', help="Flag to save images with bounding boxes (default: False)")
-    parser.add_argument("--search_width", type=int, default=100, help="Width of the region to search around the last matched position (default: 100)")
-    parser.add_argument("--search_height", type=int, default=100, help="Height of the region to search around the last matched position (default: 100)")
-    parser.add_argument("--batch_size", type=int, default=300, help="Number of frames to load per batch (default: 300)")
+    parser.add_argument("--search_width", type=int, default=100)
+    parser.add_argument("--search_height", type=int, default=100)
+    parser.add_argument("--batch_size", type=int, default=300)
     args = parser.parse_args()
 
     matcher_thread = threading.Thread(target=template_matcher, args=(
@@ -266,7 +270,6 @@ def main():
     video_name = os.path.splitext(os.path.basename(args.video_path))[0]
     output_csv = os.path.join(args.output, f"{video_name}_match_results.csv")
     manual_review_loop(output_csv)
-
     matcher_thread.join()
 
 if __name__ == "__main__":
