@@ -79,18 +79,16 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
     input_alpha = input_array[:, :, 3]
     input_transformed = transform_pixels(input_array, input_alpha, white_threshold)
 
-    candidate_templates = []
+    # Prioritize last matched template if available
     if last_matched_template and last_matched_template in template_images:
-        candidate_templates.append(last_matched_template)
-        for tmpl in template_images:
-            if tmpl != last_matched_template:
-                candidate_templates.append(tmpl)
+        candidate_templates = [last_matched_template] + [t for t in template_images if t != last_matched_template]
     else:
         candidate_templates = template_images
 
-    best_template = None
-    best_match_position = (None, None)
-    best_match_percentage = 0.0
+    match_found = False
+    matched_template = None
+    match_position = (None, None)
+    match_percentage = 0.0
 
     for template_filename in candidate_templates:
         template_image = Image.open(template_filename).convert("RGBA")
@@ -112,6 +110,7 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
 
         search_regions.append((0, iw - tw, 0, ih - th))
 
+        found = False
         for x_start, x_end, y_start, y_end in search_regions:
             for y in range(y_start, y_end + 1):
                 for x in range(x_start, x_end + 1):
@@ -124,30 +123,30 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
                         match_score = matching_pixels / total_pixels
 
                         if match_score > confidence_threshold:
-                            best_template = os.path.basename(template_filename)
-                            best_match_position = (x, y)
-                            best_match_percentage = match_score * 100
+                            matched_template = os.path.basename(template_filename)
+                            match_position = (x, y)
+                            match_percentage = match_score * 100
+                            found = True
                             break
-                if best_template:
+                if found:
                     break
-            if best_template:
+            if found:
                 break
+        if found:
+            match_found = True
+            break
 
     with open(csv_output, mode='a', newline='') as file:
         writer = csv.writer(file)
-        if best_template:
-            writer.writerow([timestamp, best_template, best_match_position[0], best_match_position[1], f"{best_match_percentage:.2f}"])
-            print(f"[{timestamp}] Matched '{best_template}' at ({best_match_position[0]}, {best_match_position[1]}) with {best_match_percentage:.2f}% confidence.")
-            last_matched_template = best_template
-            last_match_position = best_match_position
+        if match_found:
+            writer.writerow([timestamp, matched_template, match_position[0], match_position[1], f"{match_percentage:.2f}"])
+            print(f"[{timestamp}] Matched '{matched_template}' at ({match_position[0]}, {match_position[1]}) with {match_percentage:.2f}% confidence.")
+            return matched_template, match_position
         else:
             writer.writerow([timestamp, "No match", "N/A", "N/A", "N/A"])
             print(f"[{timestamp}] No template match found. Awaiting user input...")
             frame_review_queue.put((frame_array, timestamp))
-            last_matched_template = None
-            last_match_position = None
-
-    return last_matched_template, last_match_position
+            return None, None
 
 def manual_review_loop(csv_output):
     screen_res = 1920, 1080
