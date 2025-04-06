@@ -128,12 +128,15 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
     os.makedirs(os.path.dirname(csv_output), exist_ok=True)
     duration = get_video_duration(video_path)
     fps = cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FPS)
+
+    if interval_sec * fps < 1:
+        print(f"[ERROR] The interval ({interval_sec}s) is too small for the video's FPS ({fps}). Please use a larger interval.")
+        return
+
+    interval = max(1, int(interval_sec * fps))
     total_frames = int(duration * fps)
-    interval = int(interval_sec * fps)
 
     template_images = [os.path.join(template_path, f) for f in sorted(os.listdir(template_path)) if is_image(f)]
-
-    print("Template match order:", [os.path.basename(t) for t in template_images])
 
     if not template_images:
         print(f"Error: No valid template images found in '{template_path}'")

@@ -51,3 +51,7 @@ data/
 datasets/
 results/
 outputs/
+
+# Ignore results from experiments
+results/
+outputs/
