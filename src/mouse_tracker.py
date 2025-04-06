@@ -68,7 +68,7 @@ def pick_pixel(frame):
                 selected_pixel = (row, col)
             plt.close()
     fig, ax = plt.subplots()
-    ax.imshow(frame, cmap='gray')
+    ax.imshow(frame)
     fig.canvas.mpl_connect('button_press_event', on_click)
     manager = plt.get_current_fig_manager()
     manager.window.state('zoomed')
@@ -93,8 +93,6 @@ def get_cursor_loc(binary_frames, rgb_frames, idx, templates, prev_x, prev_y, de
     if len(detected_regions) == 1: # one
         return detected_regions[0][0], detected_regions[0][1]
     elif len(detected_regions) > 10 or len(detected_regions) == 0: # large multiple
-        print(len(detected_regions))
-        curr_x, curr_y = pick_pixel(binary_frames[idx])
         curr_x, curr_y = pick_pixel(rgb_frames[idx])
         if curr_x != -1 and curr_y != -1:
             return curr_x, curr_y
