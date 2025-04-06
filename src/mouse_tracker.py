@@ -79,9 +79,15 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
     input_alpha = input_array[:, :, 3]
     input_transformed = transform_pixels(input_array, input_alpha, white_threshold)
 
+    candidate_templates = []
+
     # Prioritize last matched template if available
-    if last_matched_template and last_matched_template in template_images:
-        candidate_templates = [last_matched_template] + [t for t in template_images if t != last_matched_template]
+    if last_matched_template:
+        for tmpl in template_images:
+            if os.path.basename(tmpl) == last_matched_template:
+                candidate_templates.append(tmpl)  # Add matched one first
+                break
+        candidate_templates += [t for t in template_images if os.path.basename(t) != last_matched_template]
     else:
         candidate_templates = template_images
 
