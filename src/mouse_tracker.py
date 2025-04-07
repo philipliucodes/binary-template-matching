@@ -73,7 +73,7 @@ def overwrite_csv_row(csv_path, timestamp, new_row):
             writer.writerow(new_row)
 
 def process_frame(frame_array, timestamp, template_images, confidence_threshold, white_threshold, csv_output, save_bboxes, 
-                  last_matched_template, last_match_position, search_width, search_height, frame_index):
+                  last_matched_template, last_match_position, search_width, search_height, frame_index, use_limited_templates):
     input_image = Image.fromarray(frame_array).convert("RGBA")
     input_array = np.array(input_image)
     input_alpha = input_array[:, :, 3]
@@ -81,15 +81,30 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
 
     candidate_templates = []
 
-    # Prioritize last matched template if available
-    if last_matched_template:
-        for tmpl in template_images:
-            if os.path.basename(tmpl) == last_matched_template:
-                candidate_templates.append(tmpl)  # Add matched one first
-                break
-        candidate_templates += [t for t in template_images if os.path.basename(t) != last_matched_template]
+    if use_limited_templates:
+        candidate_templates = []
+
+        if last_matched_template:
+            for tmpl in template_images:
+                if os.path.basename(tmpl) == last_matched_template:
+                    candidate_templates.append(tmpl)
+                    break
+
+        if not candidate_templates or os.path.basename(template_images[0]) != last_matched_template:
+            candidate_templates.append(template_images[0])
+        elif len(template_images) > 1:
+            candidate_templates.append(template_images[1])
+
     else:
-        candidate_templates = template_images
+        if last_matched_template:
+            candidate_templates = []
+            for tmpl in template_images:
+                if os.path.basename(tmpl) == last_matched_template:
+                    candidate_templates.append(tmpl)
+                    break
+            candidate_templates += [t for t in template_images if os.path.basename(t) != last_matched_template]
+        else:
+            candidate_templates = template_images
 
     match_found = False
     matched_template = None
@@ -249,11 +264,22 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
         batch_end = min(batch_start + batch_size - 1, end_frame)
         rgb_frames, timestamps = extract_frames(video_path, white_threshold, batch_start, batch_end, interval, fps)
 
+        use_limited_templates = False
+
         for frame_array, timestamp in zip(rgb_frames, timestamps):
-            last_matched_template, last_match_position = process_frame(
+            matched_template, match_position = process_frame(
                 frame_array, timestamp, template_images, confidence_threshold, white_threshold, csv_output,
-                save_bboxes, last_matched_template, last_match_position, search_width, search_height, frame_counter
+                save_bboxes, last_matched_template, last_match_position, search_width, search_height, frame_counter,
+                use_limited_templates
             )
+
+            if matched_template is None:
+                use_limited_templates = True
+                last_matched_template = matched_template
+                last_match_position = match_position
+            else:
+                use_limited_templates = False
+
             frame_counter += 1
 
     processing_done.set()
