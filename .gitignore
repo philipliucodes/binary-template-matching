@@ -47,7 +47,7 @@ results/
 *.tiff
 
 # Ignore downloaded datasets (if applicable)
-data/
+# data/ will change this later
 datasets/
 results/
 outputs/
