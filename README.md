@@ -2,6 +2,8 @@ WILL REMOVE THIS LATER. using this command to perform mouse tracking on a video:
 
 we r missing an open hand template image at 01_30_350 in Web47 run 1
 
+if nothing is found, check if the last frame is the exact same, if so, only one manual selection will be needed
+
 # Binary Template Matching
 
 Binary Template Matching is a Python-based approach that utilizes **binarization** to transform input and template images, followed by direct pixel matching for efficient and accurate template detection.
