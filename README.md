@@ -47,8 +47,6 @@ The `template_matcher.py` script performs template matching between binarized im
 python src/template_matcher.py input.jpg template.jpg --confidence_threshold 0.90 --white_threshold 200 --output results/
 ```
 
-Refer to the [original usage guide](#template-matching-with-binarization) above for full examples including batch matching.
-
 ---
 
 ### 3. Mouse Tracking in Video with Optional Manual Review
