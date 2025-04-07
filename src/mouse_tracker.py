@@ -79,22 +79,17 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
     input_alpha = input_array[:, :, 3]
     input_transformed = transform_pixels(input_array, input_alpha, white_threshold)
 
-    candidate_templates = []
-
     if use_limited_templates:
         candidate_templates = []
-
         if last_matched_template:
             for tmpl in template_images:
                 if os.path.basename(tmpl) == last_matched_template:
                     candidate_templates.append(tmpl)
                     break
-
         if not candidate_templates or os.path.basename(template_images[0]) != last_matched_template:
             candidate_templates.append(template_images[0])
         elif len(template_images) > 1:
             candidate_templates.append(template_images[1])
-
     else:
         if last_matched_template:
             candidate_templates = []
@@ -131,7 +126,6 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
 
         search_regions.append((0, iw - tw, 0, ih - th))
 
-        found = False
         for x_start, x_end, y_start, y_end in search_regions:
             for y in range(y_start, y_end + 1):
                 for x in range(x_start, x_end + 1):
@@ -147,14 +141,13 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
                             matched_template = os.path.basename(template_filename)
                             match_position = (x, y)
                             match_percentage = match_score * 100
-                            found = True
+                            match_found = True
                             break
-                if found:
+                if match_found:
                     break
-            if found:
+            if match_found:
                 break
-        if found:
-            match_found = True
+        if match_found:
             break
 
     with open(csv_output, mode='a', newline='') as file:
@@ -166,17 +159,30 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
         else:
             writer.writerow([timestamp, "No match", "N/A", "N/A", "N/A"])
             print(f"[{timestamp}] No template match found. Awaiting user input...")
-            frame_review_queue.put((frame_array, timestamp))
+            frame_review_queue.put(timestamp)
             return None, None
 
-def manual_review_loop(csv_output):
+def manual_review_loop(csv_output, video_path):
     screen_res = 1920, 1080
     scale_percent = 200
-    last_manual_coords = None  # Store the last manually selected (x, y)
+    last_manual_coords = None
 
     while not (processing_done.is_set() and frame_review_queue.empty()):
         if not frame_review_queue.empty():
-            frame, timestamp = frame_review_queue.get()
+            timestamp = frame_review_queue.get()
+
+            # Convert timestamp back to frame number
+            parts = list(map(int, timestamp.split('_')))
+            cap = cv2.VideoCapture(video_path)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_number = int((parts[0] * 60 + parts[1]) * fps + parts[2] * fps / 1000)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+            ret, frame = cap.read()
+            cap.release()
+            if not ret:
+                print(f"[ERROR] Could not retrieve frame for timestamp {timestamp}")
+                continue
+
             window_name = f"Manual Review - {timestamp}"
             clicked_coords = []
             clicked = [False]
@@ -206,13 +212,11 @@ def manual_review_loop(csv_output):
 
             while True:
                 key = cv2.waitKey(10)
-
                 if key == ord('a'):
                     print(f"[MANUAL INPUT] 'a' pressed on frame {timestamp}. Object not present.")
                     object_not_present[0] = True
                     cv2.destroyWindow(window_name)
                     break
-
                 elif key == ord('s'):
                     if last_manual_coords:
                         clicked_coords.append(last_manual_coords)
@@ -223,23 +227,18 @@ def manual_review_loop(csv_output):
                         object_not_present[0] = True
                     cv2.destroyWindow(window_name)
                     break
-
                 if clicked[0] or cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
                     break
-
             cv2.destroyWindow(window_name)
 
             if object_not_present[0]:
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Not present", "N/A", "N/A", "N/A"])
-
             elif reuse_last_coords[0]:
                 x, y = last_manual_coords
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Manual selection", x, y, "N/A"])
-
             elif not clicked_coords:
                 print(f"[MANUAL INPUT] Window closed without a click for frame {timestamp}")
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Not present", "N/A", "N/A", "N/A"])
-
             else:
                 x, y = clicked_coords[0]
                 last_manual_coords = (x, y)
@@ -247,7 +246,6 @@ def manual_review_loop(csv_output):
         else:
             cv2.waitKey(50)
     print("[INFO] All frames processed and manual review complete. Exiting...")
-
 
 def template_matcher(video_path, template_path, interval_sec, confidence_threshold, white_threshold, output_dir,
                      save_bboxes, search_width, search_height, batch_size, start_time, end_time):
@@ -299,9 +297,9 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
 
             if matched_template is None:
                 use_limited_templates = True
+            else:
                 last_matched_template = matched_template
                 last_match_position = match_position
-            else:
                 use_limited_templates = False
 
             frame_counter += 1
@@ -331,7 +329,7 @@ def main():
 
     video_name = os.path.splitext(os.path.basename(args.video_path))[0]
     output_csv = os.path.join(args.output, f"{video_name}_match_results.csv")
-    manual_review_loop(output_csv)
+    manual_review_loop(output_csv, args.video_path)
     matcher_thread.join()
 
 if __name__ == "__main__":
