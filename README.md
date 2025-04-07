@@ -61,6 +61,8 @@ The `mouse_tracker.py` script performs template matching directly on video frame
 python src/mouse_tracker.py path/to/video.mp4 path/to/templates/ --interval 5 --output output_dir
 ```
 
+**Important**: The template images in the directory should be sorted **alphabetically from most common to least common**. This means the most frequently occurring image (e.g., cursor type) should have a name that appears first alphabetically. This ensures optimal performance during template matching.
+
 **Optional flags**:
 
 - `--interval`: Time in seconds between frames to process (default: 5)
