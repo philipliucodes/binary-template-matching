@@ -210,7 +210,8 @@ def manual_review_loop(csv_output):
             cv2.waitKey(50)
     print("[INFO] All frames processed and manual review complete. Exiting...")
 
-def template_matcher(video_path, template_path, interval_sec, confidence_threshold, white_threshold, output_dir, save_bboxes, search_width, search_height, batch_size):
+def template_matcher(video_path, template_path, interval_sec, confidence_threshold, white_threshold, output_dir,
+                     save_bboxes, search_width, search_height, batch_size, start_time, end_time):
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     csv_output = os.path.join(output_dir, f"{video_name}_match_results.csv")
     os.makedirs(output_dir, exist_ok=True)
@@ -226,8 +227,11 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
     interval = max(1, int(interval_sec * fps))
     total_frames = int(duration * fps)
 
-    template_images = [os.path.join(template_path, f) for f in sorted(os.listdir(template_path)) if is_image(f)]
+    start_frame = int(start_time * fps) if start_time else 0
+    end_frame = int(end_time * fps) if end_time else total_frames - 1
+    end_frame = min(end_frame, total_frames - 1)
 
+    template_images = [os.path.join(template_path, f) for f in sorted(os.listdir(template_path)) if is_image(f)]
     if not template_images:
         print(f"[ERROR] No valid template images found in '{template_path}'")
         processing_done.set()
@@ -241,8 +245,8 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
     last_match_position = None
     frame_counter = 0
 
-    for batch_start in range(0, total_frames, batch_size):
-        batch_end = min(batch_start + batch_size - 1, total_frames - 1)
+    for batch_start in range(start_frame, end_frame + 1, batch_size):
+        batch_end = min(batch_start + batch_size - 1, end_frame)
         rgb_frames, timestamps = extract_frames(video_path, white_threshold, batch_start, batch_end, interval, fps)
 
         for frame_array, timestamp in zip(rgb_frames, timestamps):
@@ -264,11 +268,14 @@ def main():
     parser.add_argument("--search_width", type=int, default=100)
     parser.add_argument("--search_height", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=300)
+    parser.add_argument("--start_time", type=float, help="Start time in seconds (optional)")
+    parser.add_argument("--end_time", type=float, help="End time in seconds (optional)")
     args = parser.parse_args()
 
     matcher_thread = threading.Thread(target=template_matcher, args=(
         args.video_path, args.template_path, args.interval, 0.90, 200,
-        args.output, args.save_bboxes, args.search_width, args.search_height, args.batch_size
+        args.output, args.save_bboxes, args.search_width, args.search_height, args.batch_size,
+        args.start_time, args.end_time
     ))
     matcher_thread.start()
 
