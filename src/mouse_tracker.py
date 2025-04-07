@@ -72,7 +72,7 @@ def overwrite_csv_row(csv_path, timestamp, new_row):
             writer = csv.writer(f)
             writer.writerow(new_row)
 
-def process_frame(frame_array, timestamp, template_images, confidence_threshold, white_threshold, csv_output, save_bboxes, 
+def process_frame(frame_array, timestamp, template_images, confidence_threshold, white_threshold, csv_output, 
                   last_matched_template, last_match_position, search_width, search_height, frame_index, use_limited_templates):
     input_image = Image.fromarray(frame_array).convert("RGBA")
     input_array = np.array(input_image)
@@ -81,15 +81,19 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
 
     if use_limited_templates:
         candidate_templates = []
-        if last_matched_template:
+
+        use_last_template = (frame_index % 2 == 0)
+
+        if use_last_template and last_matched_template:
             for tmpl in template_images:
                 if os.path.basename(tmpl) == last_matched_template:
                     candidate_templates.append(tmpl)
                     break
-        if not candidate_templates or os.path.basename(template_images[0]) != last_matched_template:
-            candidate_templates.append(template_images[0])
-        elif len(template_images) > 1:
-            candidate_templates.append(template_images[1])
+        else:
+            if os.path.basename(template_images[0]) != last_matched_template:
+                candidate_templates.append(template_images[0])
+            elif len(template_images) > 1:
+                candidate_templates.append(template_images[1])
     else:
         if last_matched_template:
             candidate_templates = []
@@ -167,20 +171,27 @@ def manual_review_loop(csv_output, video_path):
     scale_percent = 200
     last_manual_coords = None
 
-    while not (processing_done.is_set() and frame_review_queue.empty()):
+    while True:
+        if processing_done.is_set() and frame_review_queue.empty():
+            break
+
         if not frame_review_queue.empty():
             timestamp = frame_review_queue.get()
 
             # Convert timestamp back to frame number
-            parts = list(map(int, timestamp.split('_')))
-            cap = cv2.VideoCapture(video_path)
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            frame_number = int((parts[0] * 60 + parts[1]) * fps + parts[2] * fps / 1000)
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-            ret, frame = cap.read()
-            cap.release()
-            if not ret:
-                print(f"[ERROR] Could not retrieve frame for timestamp {timestamp}")
+            try:
+                parts = list(map(int, timestamp.split('_')))
+                cap = cv2.VideoCapture(video_path)
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                frame_number = int((parts[0] * 60 + parts[1]) * fps + parts[2] * fps / 1000)
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+                ret, frame = cap.read()
+                cap.release()
+                if not ret:
+                    print(f"[ERROR] Could not retrieve frame for timestamp {timestamp}")
+                    continue
+            except Exception as e:
+                print(f"[ERROR] Failed to load frame for timestamp {timestamp}: {e}")
                 continue
 
             window_name = f"Manual Review - {timestamp}"
@@ -202,21 +213,27 @@ def manual_review_loop(csv_output, video_path):
                     clicked[0] = True
                     print(f"[MANUAL INPUT] User clicked at ({orig_x}, {orig_y}) on frame {timestamp}")
                     cv2.setMouseCallback(window_name, lambda *args: None)
-                    cv2.destroyWindow(window_name)
+                    if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) >= 1:
+                        cv2.destroyWindow(window_name)
 
-            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(window_name, new_width, new_height)
-            cv2.moveWindow(window_name, screen_res[0]//2 - new_width//2, screen_res[1]//2 - new_height//2)
-            cv2.imshow(window_name, resized_frame)
-            cv2.setMouseCallback(window_name, click_callback)
+            try:
+                cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(window_name, new_width, new_height)
+                cv2.moveWindow(window_name, screen_res[0] // 2 - new_width // 2, screen_res[1] // 2 - new_height // 2)
+                cv2.imshow(window_name, resized_frame)
+                cv2.setMouseCallback(window_name, click_callback)
+            except Exception as e:
+                print(f"[ERROR] Could not create window for manual review: {e}")
+                continue
 
             while True:
                 key = cv2.waitKey(10)
+
                 if key == ord('a'):
                     print(f"[MANUAL INPUT] 'a' pressed on frame {timestamp}. Object not present.")
                     object_not_present[0] = True
-                    cv2.destroyWindow(window_name)
                     break
+
                 elif key == ord('s'):
                     if last_manual_coords:
                         clicked_coords.append(last_manual_coords)
@@ -225,30 +242,36 @@ def manual_review_loop(csv_output, video_path):
                     else:
                         print(f"[MANUAL INPUT] 's' pressed but no previous coordinates available. Marking as not present.")
                         object_not_present[0] = True
-                    cv2.destroyWindow(window_name)
                     break
+
                 if clicked[0] or cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
                     break
-            cv2.destroyWindow(window_name)
+
+            if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) >= 1:
+                cv2.destroyWindow(window_name)
 
             if object_not_present[0]:
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Not present", "N/A", "N/A", "N/A"])
+
             elif reuse_last_coords[0]:
                 x, y = last_manual_coords
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Manual selection", x, y, "N/A"])
+
             elif not clicked_coords:
                 print(f"[MANUAL INPUT] Window closed without a click for frame {timestamp}")
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Not present", "N/A", "N/A", "N/A"])
+
             else:
                 x, y = clicked_coords[0]
                 last_manual_coords = (x, y)
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Manual selection", x, y, "N/A"])
         else:
             cv2.waitKey(50)
+
     print("[INFO] All frames processed and manual review complete. Exiting...")
 
 def template_matcher(video_path, template_path, interval_sec, confidence_threshold, white_threshold, output_dir,
-                     save_bboxes, search_width, search_height, batch_size, start_time, end_time):
+                     search_width, search_height, batch_size, start_time, end_time):
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     csv_output = os.path.join(output_dir, f"{video_name}_match_results.csv")
     os.makedirs(output_dir, exist_ok=True)
@@ -290,9 +313,8 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
 
         for frame_array, timestamp in zip(rgb_frames, timestamps):
             matched_template, match_position = process_frame(
-                frame_array, timestamp, template_images, confidence_threshold, white_threshold, csv_output,
-                save_bboxes, last_matched_template, last_match_position, search_width, search_height, frame_counter,
-                use_limited_templates
+                frame_array, timestamp, template_images, confidence_threshold, white_threshold, csv_output, last_matched_template, 
+                last_match_position, search_width, search_height, frame_counter, use_limited_templates
             )
 
             if matched_template is None:
@@ -312,7 +334,6 @@ def main():
     parser.add_argument("template_path", type=str, help="Path to template image or directory.")
     parser.add_argument("--interval", type=float, default=5, help="Interval in seconds between extracted frames.")
     parser.add_argument("--output", type=str, default="output", help="Directory to store output CSV (default: output)")
-    parser.add_argument("--save_bboxes", action='store_true', help="Flag to save images with bounding boxes (default: False)")
     parser.add_argument("--search_width", type=int, default=100)
     parser.add_argument("--search_height", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=300)
@@ -322,7 +343,7 @@ def main():
 
     matcher_thread = threading.Thread(target=template_matcher, args=(
         args.video_path, args.template_path, args.interval, 0.90, 200,
-        args.output, args.save_bboxes, args.search_width, args.search_height, args.batch_size,
+        args.output, args.search_width, args.search_height, args.batch_size,
         args.start_time, args.end_time
     ))
     matcher_thread.start()
