@@ -199,6 +199,7 @@ def manual_review_loop(csv_output, video_path):
             clicked = [False]
             object_not_present = [False]
             reuse_last_coords = [False]
+            window_open = False
 
             height, width = frame.shape[:2]
             new_width = int(width * scale_percent / 100)
@@ -213,7 +214,7 @@ def manual_review_loop(csv_output, video_path):
                     clicked[0] = True
                     print(f"[MANUAL INPUT] User clicked at ({orig_x}, {orig_y}) on frame {timestamp}")
                     cv2.setMouseCallback(window_name, lambda *args: None)
-                    if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) >= 1:
+                    if window_open:
                         cv2.destroyWindow(window_name)
 
             try:
@@ -222,6 +223,7 @@ def manual_review_loop(csv_output, video_path):
                 cv2.moveWindow(window_name, screen_res[0] // 2 - new_width // 2, screen_res[1] // 2 - new_height // 2)
                 cv2.imshow(window_name, resized_frame)
                 cv2.setMouseCallback(window_name, click_callback)
+                window_open = True
             except Exception as e:
                 print(f"[ERROR] Could not create window for manual review: {e}")
                 continue
@@ -244,11 +246,15 @@ def manual_review_loop(csv_output, video_path):
                         object_not_present[0] = True
                     break
 
-                if clicked[0] or cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
+                if clicked[0] or (window_open and cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1):
                     break
 
-            if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) >= 1:
-                cv2.destroyWindow(window_name)
+            if window_open:
+                try:
+                    if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) >= 1:
+                        cv2.destroyWindow(window_name)
+                except cv2.error:
+                    pass  # Already closed or invalid window
 
             if object_not_present[0]:
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Not present", "N/A", "N/A", "N/A"])
