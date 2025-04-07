@@ -207,19 +207,19 @@ def manual_review_loop(csv_output):
             while True:
                 key = cv2.waitKey(10)
 
-                if key == ord('w'):
-                    print(f"[MANUAL INPUT] 'w' pressed on frame {timestamp}. Object not present.")
+                if key == ord('a'):
+                    print(f"[MANUAL INPUT] 'a' pressed on frame {timestamp}. Object not present.")
                     object_not_present[0] = True
                     cv2.destroyWindow(window_name)
                     break
 
-                elif key == ord('e'):
+                elif key == ord('s'):
                     if last_manual_coords:
                         clicked_coords.append(last_manual_coords)
                         reuse_last_coords[0] = True
-                        print(f"[MANUAL INPUT] 'e' pressed on frame {timestamp}. Reusing coordinates {last_manual_coords}")
+                        print(f"[MANUAL INPUT] 's' pressed on frame {timestamp}. Reusing coordinates {last_manual_coords}")
                     else:
-                        print(f"[MANUAL INPUT] 'e' pressed but no previous coordinates available. Marking as not present.")
+                        print(f"[MANUAL INPUT] 's' pressed but no previous coordinates available. Marking as not present.")
                         object_not_present[0] = True
                     cv2.destroyWindow(window_name)
                     break
