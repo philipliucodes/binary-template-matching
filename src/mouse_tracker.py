@@ -31,7 +31,7 @@ def transform_pixels(image_array, alpha_channel, white_threshold):
     transformed[~almost_white & non_transparent] = 0
     return transformed
 
-def extract_frames(video_path, white_threshold, start_frame, end_frame, interval, fps):
+def extract_frames(video_path, start_frame, end_frame, interval, fps):
     video_capture = cv2.VideoCapture(video_path)
     rgb_frames = []
     timestamps = []
@@ -313,7 +313,7 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
 
     for batch_start in range(start_frame, end_frame + 1, batch_size):
         batch_end = min(batch_start + batch_size - 1, end_frame)
-        rgb_frames, timestamps = extract_frames(video_path, white_threshold, batch_start, batch_end, interval, fps)
+        rgb_frames, timestamps = extract_frames(video_path, batch_start, batch_end, interval, fps)
 
         use_limited_templates = False
 
