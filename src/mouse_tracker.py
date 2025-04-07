@@ -188,10 +188,10 @@ def manual_review_loop(csv_output, video_path):
                 ret, frame = cap.read()
                 cap.release()
                 if not ret:
-                    print(f"[ERROR] Could not retrieve frame for timestamp {timestamp}")
+                    print(f"Error: Could not retrieve frame for timestamp {timestamp}")
                     continue
             except Exception as e:
-                print(f"[ERROR] Failed to load frame for timestamp {timestamp}: {e}")
+                print(f"Error: Failed to load frame for timestamp {timestamp}: {e}")
                 continue
 
             window_name = f"Manual Review - {timestamp}"
@@ -212,7 +212,7 @@ def manual_review_loop(csv_output, video_path):
                     orig_y = int(y * height / new_height)
                     clicked_coords.append((orig_x, orig_y))
                     clicked[0] = True
-                    print(f"[MANUAL INPUT] User clicked at ({orig_x}, {orig_y}) on frame {timestamp}")
+                    print(f"User clicked at ({orig_x}, {orig_y}) on frame {timestamp}")
                     cv2.setMouseCallback(window_name, lambda *args: None)
                     if window_open:
                         cv2.destroyWindow(window_name)
@@ -225,14 +225,14 @@ def manual_review_loop(csv_output, video_path):
                 cv2.setMouseCallback(window_name, click_callback)
                 window_open = True
             except Exception as e:
-                print(f"[ERROR] Could not create window for manual review: {e}")
+                print(f"Error: Could not create window for manual review: {e}")
                 continue
 
             while True:
                 key = cv2.waitKey(10)
 
                 if key == ord('a'):
-                    print(f"[MANUAL INPUT] 'a' pressed on frame {timestamp}. Object not present.")
+                    print(f"'a' pressed on frame {timestamp}. Object not present.")
                     object_not_present[0] = True
                     break
 
@@ -240,9 +240,9 @@ def manual_review_loop(csv_output, video_path):
                     if last_manual_coords:
                         clicked_coords.append(last_manual_coords)
                         reuse_last_coords[0] = True
-                        print(f"[MANUAL INPUT] 's' pressed on frame {timestamp}. Reusing coordinates {last_manual_coords}")
+                        print(f"'s' pressed on frame {timestamp}. Reusing coordinates {last_manual_coords}")
                     else:
-                        print(f"[MANUAL INPUT] 's' pressed but no previous coordinates available. Marking as not present.")
+                        print(f"'s' pressed but no previous coordinates available. Marking as not present.")
                         object_not_present[0] = True
                     break
 
@@ -264,7 +264,7 @@ def manual_review_loop(csv_output, video_path):
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Manual selection", x, y, "N/A"])
 
             elif not clicked_coords:
-                print(f"[MANUAL INPUT] Window closed without a click for frame {timestamp}")
+                print(f"Window closed without a click for frame {timestamp}")
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Not present", "N/A", "N/A", "N/A"])
 
             else:
@@ -274,7 +274,7 @@ def manual_review_loop(csv_output, video_path):
         else:
             cv2.waitKey(50)
 
-    print("[INFO] All frames processed and manual review complete. Exiting...")
+    print("All frames processed and manual review complete. Exiting...")
 
 def template_matcher(video_path, template_path, interval_sec, confidence_threshold, white_threshold, output_dir,
                      search_width, search_height, batch_size, start_time, end_time):
@@ -286,7 +286,7 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
     fps = cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FPS)
 
     if interval_sec * fps < 1:
-        print(f"[ERROR] The interval ({interval_sec}s) is too small for the video's FPS ({fps}). Please use a larger interval.")
+        print(f"Error: The interval ({interval_sec}s) is too small for the video's FPS ({fps}). Please use a larger interval.")
         processing_done.set()
         return
 
@@ -299,7 +299,7 @@ def template_matcher(video_path, template_path, interval_sec, confidence_thresho
 
     template_images = [os.path.join(template_path, f) for f in sorted(os.listdir(template_path)) if is_image(f)]
     if not template_images:
-        print(f"[ERROR] No valid template images found in '{template_path}'")
+        print(f"Error: No valid template images found in '{template_path}'")
         processing_done.set()
         return
 

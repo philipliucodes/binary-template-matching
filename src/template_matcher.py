@@ -5,11 +5,9 @@ from PIL import Image
 import cv2
 
 def is_image(file_path):
-    """Checks if the file is an image based on its extension."""
     return file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))
 
 def get_images(path):
-    """Returns a list of image paths from a given file or directory."""
     if os.path.isdir(path):
         return [os.path.join(path, f) for f in os.listdir(path) if is_image(f)]
     elif os.path.isfile(path) and is_image(path):
@@ -18,7 +16,6 @@ def get_images(path):
         return []
 
 def transform_pixels(image_array, alpha_channel, white_threshold):
-    """Transforms an image to a binary mask based on transparency and whiteness."""
     transformed = np.zeros(image_array.shape[:2], dtype=np.uint8)
     non_transparent = alpha_channel > 0
     almost_white = (
@@ -31,7 +28,6 @@ def transform_pixels(image_array, alpha_channel, white_threshold):
     return transformed
 
 def template_matcher(input_path, template_path, confidence_threshold, white_threshold, output_dir):
-    """Performs template matching on input images using the provided template(s)."""
     os.makedirs(output_dir, exist_ok=True)
     
     input_images = get_images(input_path)
@@ -112,16 +108,14 @@ def template_matcher(input_path, template_path, confidence_threshold, white_thre
             print(f"Input '{os.path.basename(input_filename)}': No template matches found.")
 
 def main():
-    """Parses command-line arguments and runs the template matcher."""
     parser = argparse.ArgumentParser(description="Template matching using image masks.")
     parser.add_argument("input_path", type=str, help="Path to input image or directory.")
     parser.add_argument("template_path", type=str, help="Path to template image or directory.")
     parser.add_argument("--confidence_threshold", type=float, default=0.90, help="Threshold for matching confidence (default: 0.90)")
     parser.add_argument("--white_threshold", type=int, default=200, help="Threshold for defining near-white pixels (default: 200)")
     parser.add_argument("--output", type=str, default="output", help="Directory to save matched images (default: output/)")
-    
+
     args = parser.parse_args()
-    
     template_matcher(args.input_path, args.template_path, args.confidence_threshold, args.white_threshold, args.output)
 
 if __name__ == "__main__":
