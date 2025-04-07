@@ -172,6 +172,7 @@ def process_frame(frame_array, timestamp, template_images, confidence_threshold,
 def manual_review_loop(csv_output):
     screen_res = 1920, 1080
     scale_percent = 200
+    last_manual_coords = None  # Store the last manually selected (x, y)
 
     while not (processing_done.is_set() and frame_review_queue.empty()):
         if not frame_review_queue.empty():
@@ -180,6 +181,7 @@ def manual_review_loop(csv_output):
             clicked_coords = []
             clicked = [False]
             object_not_present = [False]
+            reuse_last_coords = [False]
 
             height, width = frame.shape[:2]
             new_width = int(width * scale_percent / 100)
@@ -204,26 +206,48 @@ def manual_review_loop(csv_output):
 
             while True:
                 key = cv2.waitKey(10)
-                if key == 23:  # Ctrl + W
-                    print(f"[MANUAL INPUT] Ctrl+W pressed on frame {timestamp}. Object not present.")
+
+                if key == ord('w'):
+                    print(f"[MANUAL INPUT] 'w' pressed on frame {timestamp}. Object not present.")
                     object_not_present[0] = True
                     cv2.destroyWindow(window_name)
                     break
+
+                elif key == ord('e'):
+                    if last_manual_coords:
+                        clicked_coords.append(last_manual_coords)
+                        reuse_last_coords[0] = True
+                        print(f"[MANUAL INPUT] 'e' pressed on frame {timestamp}. Reusing coordinates {last_manual_coords}")
+                    else:
+                        print(f"[MANUAL INPUT] 'e' pressed but no previous coordinates available. Marking as not present.")
+                        object_not_present[0] = True
+                    cv2.destroyWindow(window_name)
+                    break
+
                 if clicked[0] or cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
                     break
+
             cv2.destroyWindow(window_name)
 
             if object_not_present[0]:
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Not present", "N/A", "N/A", "N/A"])
+
+            elif reuse_last_coords[0]:
+                x, y = last_manual_coords
+                overwrite_csv_row(csv_output, timestamp, [timestamp, "Manual selection", x, y, "N/A"])
+
             elif not clicked_coords:
-                print(f"[Manual Input] Window closed without a click for frame {timestamp}")
+                print(f"[MANUAL INPUT] Window closed without a click for frame {timestamp}")
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Not present", "N/A", "N/A", "N/A"])
+
             else:
                 x, y = clicked_coords[0]
+                last_manual_coords = (x, y)
                 overwrite_csv_row(csv_output, timestamp, [timestamp, "Manual selection", x, y, "N/A"])
         else:
             cv2.waitKey(50)
     print("[INFO] All frames processed and manual review complete. Exiting...")
+
 
 def template_matcher(video_path, template_path, interval_sec, confidence_threshold, white_threshold, output_dir,
                      save_bboxes, search_width, search_height, batch_size, start_time, end_time):
