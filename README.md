@@ -1,18 +1,19 @@
-WILL REMOVE THIS LATER. using this command to perform mouse tracking on a video: python src/mouse_tracker.py data/videos/Web47_run1.mkv data/images/templates_lite/ --interval 0.02
+# Binary Template Matching & Mouse Tracking
 
-we r missing an open hand template image at 01_30_350 in Web47 run 1
+This project provides Python-based tools for **binary template matching** and **mouse tracking** using screen recordings. It utilizes **binarization** to convert input and template images into binary forms, allowing direct pixel-based matching. This technique is robust against variations in shading, contrast, and lighting conditions, making it ideal for detecting objects with distinct contours—such as cursors, UI elements, or symbols.
 
-if nothing is found, check if the last frame is the exact same, if so, only one manual selection will be needed
+## Features
 
-# Binary Template Matching
+- Efficient binary template matching using alpha-aware binarization
+- Batch processing of image(s) or video frames
+- Mouse tracking via template matching with optional manual correction
+- CSV export of results with timestamped detections
 
-Binary Template Matching is a Python-based approach that utilizes **binarization** to transform input and template images, followed by direct pixel matching for efficient and accurate template detection.
-
-Binarization enhances template matching by simplifying images to their fundamental shapes, making it especially useful when the template's shading, contrast, or color may vary. This technique is effective for locating objects with distinct contours, such as identifying a cursor in a screen recording, detecting symbols in documents, or recognizing objects under varying lighting conditions. By reducing the complexity of image data, binarization improves robustness in situations where traditional grayscale or color-based matching might fail.
+---
 
 ## Installation
 
-Clone the repository and install the required dependencies using `pip`:
+Clone the repository and install dependencies using pip:
 
 ```bash
 git clone https://github.com/yourusername/binary-template-matching.git
@@ -20,21 +21,15 @@ cd binary-template-matching
 pip install -r requirements.txt
 ```
 
+---
+
 ## Usage
 
-### Extracting Frames from a Video
+### 1. Extracting Frames from a Video
 
 The `frame_extractor.py` script extracts a specific frame from a video at a given timestamp.
 
-#### Command-line Usage
-
-```bash
-python src/frame_extractor.py path/to/video.mp4 MM:SS.MS --output frames/
-```
-
-#### Example
-
-Extract a frame at **00:44.250** from `video.mp4` and save it to the `extracted_frames/` directory:
+#### Example:
 
 ```bash
 python src/frame_extractor.py sample_video.mp4 00:44.250 --output extracted_frames
@@ -42,41 +37,43 @@ python src/frame_extractor.py sample_video.mp4 00:44.250 --output extracted_fram
 
 ---
 
-### Template Matching with Binarization
+### 2. Template Matching with Binarization
 
-The `template_matcher.py` script allows template matching using binarized images. It supports both **single image** and **directory-based** matching.
+The `template_matcher.py` script performs template matching between binarized images.
 
-#### Command-line Usage
+#### Example (single image vs single template):
 
 ```bash
-python src/template_matcher.py input_image_or_directory template_image_or_directory --confidence_threshold 0.90 --white_threshold 200 --output results/
+python src/template_matcher.py input.jpg template.jpg --confidence_threshold 0.90 --white_threshold 200 --output results/
 ```
 
-#### Examples
+Refer to the [original usage guide](#template-matching-with-binarization) above for full examples including batch matching.
 
-1. **Match a single image against a single template:**
+---
 
-   ```bash
-   python src/template_matcher.py input.jpg template.jpg --confidence_threshold 0.90 --white_threshold 200 --output results/
-   ```
+### 3. Mouse Tracking in Video with Optional Manual Review
 
-2. **Match a single image against multiple templates (inside a directory):**
+The `mouse_tracker.py` script performs template matching directly on video frames and optionally queues uncertain results for manual review. It supports frame skipping via time intervals, focused searching based on previous frame matches, and output to a CSV file.
 
-   ```bash
-   python src/template_matcher.py input.jpg templates/ --confidence_threshold 0.90 --white_threshold 200 --output results/
-   ```
+#### Example:
 
-3. **Match multiple input images against a single template:**
+```bash
+python src/mouse_tracker.py path/to/video.mp4 path/to/templates/ --interval 5 --output output_dir
+```
 
-   ```bash
-   python src/template_matcher.py images/ template.jpg --confidence_threshold 0.90 --white_threshold 200 --output results/
-   ```
+**Optional flags**:
 
-4. **Match multiple input images against multiple templates:**
+- `--interval`: Time in seconds between frames to process (default: 5)
+- `--output`: Output directory for CSV results (default: `output`)
+- `--search_width` and `--search_height`: Dimensions of region to search around last match (default: 100x100)
+- `--batch_size`: Number of frames per batch (default: 300)
+- `--start_time` and `--end_time`: Optional start/end time in seconds to analyze a portion of the video
 
-   ```bash
-   python src/template_matcher.py images/ templates/ --confidence_threshold 0.90 --white_threshold 200 --output results/
-   ```
+When the script can't find a match above the confidence threshold, it will open a window for **manual input**, where you can:
+
+- Click to mark the object
+- Press `a` to indicate "object not present"
+- Press `s` to reuse the last manually selected coordinates
 
 ---
 
