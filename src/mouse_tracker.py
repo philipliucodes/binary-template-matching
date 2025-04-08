@@ -19,6 +19,18 @@ def get_video_duration(video_path):
     duration = float(probe['format']['duration'])
     return duration
 
+def parse_timestamp(timestamp_str):
+    try:
+        if '.' in timestamp_str:
+            minutes, seconds_ms = timestamp_str.split(':', 1)
+            seconds, milliseconds = seconds_ms.split('.')
+        else:
+            minutes, seconds, milliseconds = timestamp_str.split(':')
+        total_seconds = int(minutes) * 60 + int(seconds) + int(milliseconds) / 1000.0
+        return total_seconds
+    except Exception as e:
+        raise argparse.ArgumentTypeError(f"Invalid timestamp format: '{timestamp_str}'. Use 'MM:SS:MS' or 'MM:SS.MS'.")
+
 def transform_pixels(image_array, alpha_channel, white_threshold):
     transformed = np.zeros(image_array.shape[:2], dtype=np.uint8)
     non_transparent = alpha_channel > 0
@@ -343,8 +355,9 @@ def main():
     parser.add_argument("--search_width", type=int, default=100)
     parser.add_argument("--search_height", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=300)
-    parser.add_argument("--start_time", type=float, help="Start time in seconds (optional)")
-    parser.add_argument("--end_time", type=float, help="End time in seconds (optional)")
+    parser.add_argument("--start_time", type=parse_timestamp, help="Start time (format: MM:SS:MS or MM:SS.MS)")
+    parser.add_argument("--end_time", type=parse_timestamp, help="End time (format: MM:SS:MS or MM:SS.MS)")
+
     args = parser.parse_args()
 
     matcher_thread = threading.Thread(target=template_matcher, args=(
