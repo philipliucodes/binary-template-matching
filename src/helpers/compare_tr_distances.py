@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 
 ground_truth_df = pd.read_csv("data/csvs/Web47_1_ground.csv")
-recorded_df = pd.read_csv("data/csvs/Web47_1_experiment.csv")
+recorded_df = pd.read_csv("output/Web47_run1_distance.csv")
 
 merged_df = pd.merge(ground_truth_df, recorded_df, on="TR", suffixes=("_truth", "_recorded"))
 

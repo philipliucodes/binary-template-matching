@@ -43,24 +43,27 @@ def process_mouse_csv(input_csv, tr_ms, output_csv, start_ms=None, end_ms=None):
 
         tr = (timestamp_ms - (start_ms or base_time)) // tr_ms + 1
 
-        try:
+        if row['match_x'] == 'N/A' or row['match_y'] == 'N/A' or row['best_template'] == 'Not present':
+            # Assume object hasn't moved
+            pos = last_position
+            distance_this_frame = 0
+        else:
             x = int(row['match_x'])
             y = int(row['match_y'])
             pos = (x, y)
-        except ValueError:
-            pos = last_position
+            distance_this_frame = compute_distance(last_position, pos) if last_position else 0
 
-        if last_position is not None and pos is not None:
+        if pos is not None:
             if tr == current_tr:
-                current_distance += compute_distance(last_position, pos)
+                current_distance += distance_this_frame
             else:
                 distances_by_tr.append((current_tr, round(current_distance)))
                 for skipped_tr in range(current_tr + 1, tr):
                     distances_by_tr.append((skipped_tr, 0))
-                current_distance = compute_distance(last_position, pos)
+                current_distance = distance_this_frame
                 current_tr = tr
 
-        last_position = pos
+            last_position = pos
 
     if current_tr is not None:
         distances_by_tr.append((current_tr, round(current_distance)))
