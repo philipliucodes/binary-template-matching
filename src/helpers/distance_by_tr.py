@@ -76,11 +76,11 @@ def process_mouse_csv(input_csv, tr_ms, output_csv, start_ms=None, end_ms=None):
     print(f"Output saved to {output_csv}")
 
 if __name__ == "__main__":
-    input_csv = "output/Web15_run2_match_results.csv"
-    output_csv = "output/Web15_run2_distance.csv"
+    input_csv = "output/Web04_run2_match_results.csv"
+    output_csv = "output/Web04_run2_distance.csv"
     tr_seconds = 1.5
-    start_time = "00:00.000"
-    end_time = "15:00.000"
+    start_time = "00:38.767"
+    end_time = "15:38.767"
 
     tr_ms = int(tr_seconds * 1000)
     start_ms = parse_time_str(start_time) if start_time else None
