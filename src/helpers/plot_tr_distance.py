@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("output/Web04_run2_distance.csv")
+df = pd.read_csv("output/Web04_run2_distance1.csv")
 
 if "TR" not in df.columns or "Distance" not in df.columns:
     raise ValueError("CSV must contain 'TR' and 'Distance' columns.")
