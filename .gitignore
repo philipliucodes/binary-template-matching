@@ -47,7 +47,9 @@ results/
 *.tiff
 
 # Ignore downloaded datasets (if applicable)
-data
+# data/
+data/videos/
+data/csv/
 datasets/
 results/
 outputs/
